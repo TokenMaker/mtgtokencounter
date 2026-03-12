@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MTG Token Controller</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #121212; color: white; padding: 20px; }
+        .card { background: #1e1e1e; border-radius: 15px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        button { background: #3498db; color: white; border: none; padding: 15px 30px; border-radius: 5px; font-size: 1.2rem; margin: 10px; cursor: pointer; width: 80%; }
+        input { padding: 10px; font-size: 1.1rem; width: 70%; margin: 10px; border-radius: 5px; border: 1px solid #444; background: #222; color: white; }
+        .controls { display: flex; justify-content: center; align-items: center; gap: 20px; }
+        .btn-round { width: 60px; height: 60px; border-radius: 50%; font-size: 2rem; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>MTG Token Control</h2>
+        <button id="connectBtn">Connect to Board</button>
+        <p id="status">Status: Disconnected</p>
+        <hr>
+        
+        <div>
+            <label>Token Type:</label><br>
+            <input type="text" id="tokenType" placeholder="e.g. Zombie">
+        </div>
+
+        <div class="controls">
+            <button class="btn-round" onclick="changeCount(-1)">-</button>
+            <h1 id="countDisplay">0</h1>
+            <button class="btn-round" onclick="changeCount(1)">+</button>
+        </div>
+        
+        <button style="background:#2ecc71" onclick="sendToBoard()">Update Board</button>
+    </div>
+
+    <script>
+        let bleDevice, bleCharacteristic;
+        let count = 0;
+        const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+        const CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+
+        async function connect() {
+            try {
+                bleDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ name: 'MTG-Token-Counter' }],
+                    optionalServices: [SERVICE_UUID]
+                });
+                const server = await bleDevice.gatt.connect();
+                const service = await server.getPrimaryService(SERVICE_UUID);
+                bleCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+                document.getElementById('status').innerText = "Status: Connected!";
+                document.getElementById('connectBtn').style.display = "none";
+            } catch (error) { console.log(error); }
+        }
+
+        function changeCount(val) {
+            count = Math.max(0, count + val);
+            document.getElementById('countDisplay').innerText = count;
+        }
+
+        async function sendToBoard() {
+            if (!bleCharacteristic) return alert("Connect first!");
+            const type = document.getElementById('tokenType').value || "TOKEN";
+            const message = `${type}:${count}`;
+            const encoder = new TextEncoder();
+            await bleCharacteristic.writeValue(encoder.encode(message));
+        }
+
+        document.getElementById('connectBtn').addEventListener('click', connect);
+    </script>
+</body>
+</html>
